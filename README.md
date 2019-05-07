@@ -13,6 +13,24 @@ The file `homologation.php` helps you to follow all the necessary steps for that
 
 ### Use the composer to include this features to your project
 
+*Add the respository in your composer.json 
+
+	"repositories": [
+        {
+            "url": "https://github.com/edermartins/Epp.git",
+            "type": "git"
+        }
+    ]
+
+*Add the Epp into your project, by command line:
+
+	composer require edermartins/Epp
+	
+*Into your code, just include de autoloader and use the class Epp:
+
+	require_once 'vendor/autoload.php';
+	use NicBr\Epp\Epp;
+	 
 
 ### How to register a new domain?
 
