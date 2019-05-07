@@ -11,6 +11,9 @@ To use all functions EPP protocol provides, your company has to pass the Registe
 
 The file `homologation.php` helps you to follow all the necessary steps for that ;)
 
+### Use the composer to include this features to your project
+
+
 ### How to register a new domain?
 
 To register a new domain, follow these simple sequences:

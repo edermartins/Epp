@@ -1,0 +1,23 @@
+{
+    "name": "edermartins/Epp",
+    "type": "library",
+    "description": "Very simple implementation of EPP for Nicbr from Brazil",
+    "keywords": ["nicbr","epp","windows", "linux"],
+    "homepage": "https://github.com/edermartins/Epp",
+    "license": "MIT",
+    "authors": [
+	    {
+            "name": "Diogo Tozzi",
+            "email": "diogo@diogotozzi.com"
+        },{
+            "name": "Eder Jani Martins",
+            "email": "zetared@gmail.com"
+        }
+    ],
+    "require": {
+        "php" : ">=5.4.0"
+    },
+    "autoload": {
+        "classmap" : [ "class/" ]
+    }
+}

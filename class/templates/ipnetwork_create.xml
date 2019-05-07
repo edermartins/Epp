@@ -18,6 +18,7 @@
     $(asn)$
     $(contacts)$
     $(reversesDns)$
+    $(ds_list)$
    </ipnetwork:create>
   </create>
   $(clTRID)$

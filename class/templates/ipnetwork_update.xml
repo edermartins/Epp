@@ -13,6 +13,8 @@
     $(ipnetwork_add)$
     $(ipnetwork_rem)$
     $(ipnetwork_chg)$
+    $(ipnetwork_aggr)$
+    $(ipnetwork_creation_date)$
    </ipnetwork:update>
   </update>
   $(clTRID)$

@@ -13,6 +13,7 @@
 	$(asn_add)$
 	$(asn_rem)$
 	$(asn_chg)$
+	$(asn_creation_date)$
       </asn:update>
     </update>
     $(clTRID)$
