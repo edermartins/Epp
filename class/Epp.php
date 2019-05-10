@@ -185,25 +185,32 @@ class Epp extends EppBase implements iEpp
      *        
      * @access public
      */
-    public function contact_update($client_id = null, $client_name = null, $client_street_1 = null, $client_street_2 = null, $client_street_3 = null, $client_city = null, $client_state = null, $client_zipcode = null, $client_country = 'BR', $client_phone = null, $client_email = null)
+    public function contact_update($client_id = null, $client_street_1 = null, $client_street_2 = null, $client_street_3 = null, $client_city = null, $client_state = null, $client_zipcode = null, $client_country = 'BR', $client_phone = null, $client_email = null)
     {
         $xml = file_get_contents(__DIR__ . '/templates/contact_update.xml');
         
+        $contact_addr = ($client_street_1 ? "<contact:street>{$client_street_1}</contact:street>" : '')
+            .($client_street_2 ? "<contact:street>{$client_street_2}</contact:street>" : '')
+            .($client_street_3 ? "<contact:street>{$client_street_3}</contact:street>" : '')
+            .($client_city ? "<contact:city>{$client_city}</contact:city>" : '')
+            .($client_state ? "<contact:sp>{$client_state}</contact:sp>" : '')
+            .($client_zipcode ? "<contact:pc>{$client_zipcode}</contact:pc>" : '')
+            .($client_country ? "<contact:cc>{$client_country}</contact:cc>" : '' );
+        
+        $contact_addr = ($contact_addr ? "<contact:addr>$contact_addr</contact:addr>" : '');
+        
+        $contact_postal_info = ( $contact_addr ? "<contact:postalInfo type=\"loc\">{$contact_addr}</contact:postalInfo>" : '');
+        
+        $contact_voice = ($client_phone ? "<contact:voice>{$client_phone}</contact:voice>" : '' );
+        $contact_mail = ($client_email ? "<contact:email>{$client_email}</contact:email>" : '' );
+        $contact_info = "<contact:authInfo><contact:pw>{$this->_password}</contact:pw></contact:authInfo>";
+                
         $chg = "<contact:chg>
-				<contact:postalInfo type=\"loc\">" . ($client_name ? "<contact:name>{$client_name}</contact:name>" : null) . "<contact:addr>
-							<contact:street>{$client_street_1}</contact:street>
-						<contact:street>{$client_street_2}</contact:street>" . ($org_street_3 ? "<contact:street>{$org_street_3}</contact:street>" : null) . "<contact:city>{$client_city}</contact:city>
-							<contact:sp>{$client_state}</contact:sp>
-							<contact:pc>{$client_zipcode}</contact:pc>
-							<contact:cc>{$client_country}</contact:cc>
-						</contact:addr>
-					</contact:postalInfo>
-					<contact:voice>{$client_phone}</contact:voice>
-					<contact:email>{$client_email}</contact:email>
-					<contact:authInfo>
-					<contact:pw>{$this->getPassword()}</contact:pw>
-					</contact:authInfo>
-				</contact:chg>";
+                {$contact_postal_info}
+                {$contact_voice}
+                {$contact_mail}
+                {$contact_info}
+            </contact:chg>";
         
         $cltrid = '<clTRID>' . $this->generate_id() . '</clTRID>';
         
@@ -311,7 +318,7 @@ class Epp extends EppBase implements iEpp
         $response = $this->xml2array($this->unwrap());
         
         if ($response['epp']['response']['result_attr']['code'] != '1000') {
-            $reason = ($response['epp']['response']['result']['extValue']['reason'] ? ' - ' . $response['epp']['response']['result']['extValue']['reason'] : '');
+            $reason = (isset($response['epp']['response']['result']['extValue']['reason']) ? ' - ' . $response['epp']['response']['result']['extValue']['reason'] : '');
             throw new \Exception($response['epp']['response']['result']['msg'] . $reason, $response['epp']['response']['result_attr']['code']);
         }
         
@@ -416,7 +423,9 @@ class Epp extends EppBase implements iEpp
 							<contact:name>{$org_name}</contact:name>
 							<contact:addr>
 								<contact:street>{$org_street_1}</contact:street>
-							<contact:street>{$org_street_2}</contact:street>" . ($org_street_3 ? "<contact:street>{$org_street_3}</contact:street>" : null) . "<contact:city>{$org_city}</contact:city>
+							<contact:street>{$org_street_2}</contact:street>" 
+							    .($org_street_3 ? "<contact:street>{$org_street_3}</contact:street>" : null) 
+							    ."<contact:city>{$org_city}</contact:city>
 								<contact:sp>{$org_state}</contact:sp>
 								<contact:pc>{$org_zipcode}</contact:pc>
 								<contact:cc>{$org_country}</contact:cc>
@@ -477,8 +486,6 @@ class Epp extends EppBase implements iEpp
      *
      * @param string $org_id
      *            Organization's CPF or CNPJ. Eg: '246.838.523-30'.
-     * @param string $org_name
-     *            Name.
      * @param string $org_street_1
      *            Address.
      * @param string $org_street_2
@@ -495,34 +502,67 @@ class Epp extends EppBase implements iEpp
      *            Country. Default is 'BR'.
      * @param string $org_phone
      *            Phone. Required the country code. Eg: '+55.1100000000'.
-     * @param string $contact_id
-     *            ID from a contact previously created. Eg: 'JOSIL44'.
-     * @param string $contact_name
-     *            Contact's name.
+     * @param string $org_id
+     *            Organization's CPF or CNPJ. Eg: '246.838.523-30'.
+     *            
+     * @param array $contact_list List of arrays with array('id'=> 'EJM12', 'type' => 'admin|billing|tech', 'action' => 'add|rem' )
+     * <br><li><b>id</b>: Contact ID
+     * <br><li><b>type</b>: Type of the contact. Can be admin, tech or billing
+     * <br><li><b>action</b>: <b>add</b> or <b>rem</b>ove a contact from organization. If you want to change one contact,
+     * just remove the old one and add a new one 
+     * @param string $responsible Name of the responsible
      *            
      * @return array Returns organization's updated information array('code' => 1010, 'msg' => 'message' )
      *        
      * @access public
      */
-    public function org_update($org_id = null, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $contact_admin_id = null, $contact_tech_id = null, $contact_billing_id = null, $responsible = null)
+    public function org_update($org_id, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $contact_list = null, $responsible = null)
     {
         $xml = file_get_contents(__DIR__ . '/templates/br_org_update.xml');
         
+        $contact_addr = ($org_street_1 ? "<contact:street>{$org_street_1}</contact:street>" : '')
+            .($org_street_2 ? "<contact:street>{$org_street_2}</contact:street>" : '')
+            .($org_street_3 ? "<contact:street>{$org_street_3}</contact:street>" : '')
+            .($org_city ? "<contact:city>{$org_city}</contact:city>" : '')
+            .($org_state ? "<contact:sp>{$org_state}</contact:sp>" : '')
+            .($org_zipcode ? "<contact:pc>{$org_zipcode}</contact:pc>" : '')
+            .($org_country ? "<contact:cc>{$org_country}</contact:cc>" : '' );
+        
+        $contact_name = ($org_name ? "<contact:name>{$org_name}</contact:name>":  '' );
+        $contact_addr = ($contact_addr ? "<contact:addr>$contact_addr</contact:addr>" : '');
+        $contact_postal_info = ($contact_addr || $contact_name ? "<contact:postalInfo type=\"loc\">{$contact_name}{$contact_addr}</contact:postalInfo>" : '');
+        $contact_voice = ($org_phone ? "<contact:voice>{$org_phone}</contact:voice>" : '');
+        
         $chg = "<contact:chg>
-					<contact:postalInfo type=\"loc\">
-						<contact:addr>
-							<contact:street>{$org_street_1}</contact:street>
-						<contact:street>{$org_street_2}</contact:street>" . ($org_street_3 ? "<contact:street>{$org_street_3}</contact:street>" : null) . "<contact:city>{$org_city}</contact:city>
-							<contact:sp>{$org_state}</contact:sp>
-							<contact:pc>{$org_zipcode}</contact:pc>
-							<contact:cc>{$org_country}</contact:cc>
-						</contact:addr>
-					</contact:postalInfo>
-					<contact:voice>{$org_phone}</contact:voice>
-					<contact:authInfo>
-					<contact:pw>{$this->getPassword()}</contact:pw>
-					</contact:authInfo>
-				</contact:chg>";
+                $contact_postal_info
+                $contact_voice
+    			<contact:authInfo>
+    			     <contact:pw>{$this->getPassword()}</contact:pw>
+    			  </contact:authInfo>
+    		</contact:chg>";
+
+		/*
+		 * Processing the 'add' and 'rem' actions
+		 */
+		$brorg_add = null;
+		$brorg_rem = null;
+        if(is_array($contact_list)){
+            foreach ($contact_list as $contact){
+                $type = $contact['type'];
+                $contact_id = $contact['id'];
+                if($contact['action'] == 'add'){
+                    $brorg_add = ($brorg_add==null ? "<brorg:add>" : $brorg_add);
+                    $brorg_add .= "<brorg:contact type=\"$type\">$contact_id</brorg:contact>";
+                }elseif($contact['action'] == 'rem'){
+                    $brorg_rem = ($brorg_rem==null ? "<brorg:rem>" : $brorg_rem);
+                    $brorg_rem .= "<brorg:contact type=\"$type\">$contact_id</brorg:contact>";
+                }
+            }
+        }
+        $brorg_add = ($brorg_add==null ? '' : $brorg_add . "</brorg:add>");
+        $brorg_rem = ($brorg_rem==null ? '' : $brorg_rem . "</brorg:rem>");
+
+		$brorg_chg = $responsible ? "<brorg:chg><brorg:responsible>{$responsible}</brorg:responsible></brorg:chg>" : null;
         
         $cltrid = '<clTRID>' . $this->generate_id() . '</clTRID>';
         
@@ -531,9 +571,9 @@ class Epp extends EppBase implements iEpp
         $xml = str_replace('$(rem)$', '', $xml);
         $xml = str_replace('$(chg)$', $chg, $xml);
         $xml = str_replace('$(organization)$', $org_id, $xml);
-        $xml = str_replace('$(brorg_add)$', '', $xml);
-        $xml = str_replace('$(brorg_rem)$', '', $xml);
-        $xml = str_replace('$(brorg_chg)$', '', $xml);
+        $xml = str_replace('$(brorg_add)$', $brorg_add, $xml);
+        $xml = str_replace('$(brorg_rem)$', $brorg_rem, $xml);
+        $xml = str_replace('$(brorg_chg)$', $brorg_chg, $xml);
         $xml = str_replace('$(clTRID)$', $cltrid, $xml);
         
         $xml = $this->wrap($xml);
@@ -957,7 +997,7 @@ class Epp extends EppBase implements iEpp
      *
      * @param string $domain_name
      *            Domain name. Ex: 'test.com.br'.
-     * @param Datetime $domain_expiration
+     * @param string $domain_expiration
      *            Current expiration date. You can find out the expiration date
      *            using domain_info().
      * @param int $domain_year_renovation

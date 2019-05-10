@@ -18,15 +18,15 @@ interface iEpp
 
     public function contact_create($client_name = null, $client_street_1 = null, $client_street_2 = null, $client_street_3 = null, $client_city = null, $client_state = null, $client_zipcode = null, $client_country = 'BR', $client_phone = null, $client_email = null);
 
-    public function contact_update($client_id = null, $client_name = null, $client_street_1 = null, $client_street_2 = null, $client_street_3 = null, $client_city = null, $client_state = null, $client_zipcode = null, $client_country = 'BR', $client_phone = null, $client_email = null);
+    public function contact_update($client_id = null, $client_street_1 = null, $client_street_2 = null, $client_street_3 = null, $client_city = null, $client_state = null, $client_zipcode = null, $client_country = 'BR', $client_phone = null, $client_email = null);
 
     public function org_check($org_id = null);
 
     public function org_info($org_id = null);
 
-    public function org_create($org_id = null, $org_name = null, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $org_email = null, $contact_admin_id = null, $contact_tech_id = null, $contact_billing_id = null, $responsible = null);
+    public function org_create($org_id, $org_name = null, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $org_email = null, $contact_admin_id = null, $contact_tech_id = null, $contact_billing_id = null, $responsible = null);
 
-    public function org_update($org_id = null, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $contact_admin_id = null, $contact_tech_id = null, $contact_billing_id = null, $responsible = null);
+    public function org_update($org_id, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $contact_list = null, $responsible = null);
 
     public function domain_check($domains);
 
