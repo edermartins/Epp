@@ -51,7 +51,7 @@ class Epp extends EppBase implements iEpp
         }
         
         $infData = $response['epp']['response']['resData']['contact:infData'];
-        $data = array(
+        $data = array(  
             'client_id' => $infData['contact:id'],
             'client_roid' => $infData['contact:roid'],
             'client_name' => $infData['contact:postalInfo']['contact:name'],
@@ -329,39 +329,51 @@ class Epp extends EppBase implements iEpp
             'org_roid' => $infData['contact:roid'],
             'org_name' => $infData['contact:postalInfo']['contact:name'],
             'org_status' => array(),
-            'org_city' => $infData['contact:postalInfo']['contact:addr']['contact:city'],
-            'org_state' => $infData['contact:postalInfo']['contact:addr']['contact:sp'],
-            'org_zipcode' => $infData['contact:postalInfo']['contact:addr']['contact:pc'],
-            'org_country' => $infData['contact:postalInfo']['contact:addr']['contact:cc'],
+            'org_city' => isset($infData['contact:postalInfo']['contact:addr']['contact:city']) ? $infData['contact:postalInfo']['contact:addr']['contact:city'] : '',
+            'org_state' => isset($infData['contact:postalInfo']['contact:addr']['contact:sp']) ? $infData['contact:postalInfo']['contact:addr']['contact:sp'] : '',
+            'org_zipcode' => isset($infData['contact:postalInfo']['contact:addr']['contact:pc']) ? $infData['contact:postalInfo']['contact:addr']['contact:pc'] : '',
+            'org_country' => isset($infData['contact:postalInfo']['contact:addr']['contact:cc']) ? $infData['contact:postalInfo']['contact:addr']['contact:cc'] : '',
             'org_phone' => $infData['contact:voice'],
             'org_email' => $infData['contact:email'],
             'org_client_id' => $infData['contact:clID'],
             'org_create_id' => $infData['contact:crID'],
             'org_create' => $infData['contact:crDate'],
             'org_update' => (isset($infData['contact:upDate'])) ? $infData['contact:upDate'] : '',
-            'org_contact' => array(
-                'org_id' => (isset($extension_infData['brorg:organization']) ? $extension_infData['brorg:organization'] : ''),
-                'org_contact_id' => (isset($extension_infData['brorg:contact']) ? $extension_infData['brorg:contact'] : ''),
-                'org_contact_type' => (isset($extension_infData['brorg:contact_attr']['type']) ? $extension_infData['brorg:contact_attr']['type'] : '')
-            ),
+            'org_contact' => array(),
             'org_suspended' => (isset($extension_infData['brorg:suspended']) ? $extension_infData['brorg:suspended'] : '')
         );
+        // Address
         foreach ($infData['contact:postalInfo']['contact:addr']['contact:street'] as $key => $street) {
             $org_address = 'org_address_' . ($key + 1);
             $data[$org_address] = $street;
         }
-        
+        // Org Contacts (for NICBR the 'admin' contact always exists, but can exists more
+        if(isset($extension_infData['domain:contact'][0])){
+            foreach ($extension_infData['domain:contact'] as $key => $contact) {
+                if (!is_array($contact)) {
+                    $type = $resData_InfData['domain:contact']["{$key}_attr"]['type'];
+                    $data['org_contact'][$type] = $contact;
+                }
+            }
+        }else{
+            $type = (isset($extension_infData['brorg:contact_attr']['type']) ? $extension_infData['brorg:contact_attr']['type'] : '');
+            $contact = (isset($extension_infData['brorg:contact']) ? $extension_infData['brorg:contact'] : '');
+            $data['org_contact'][$type] = $contact;
+        }
+        //EPP contact status
         foreach ($infData['contact:status'] as $key => $status) {
             if (isset($status['s'])) {
                 $data['org_status'][] = $status['s'];
             }
         }
+        //List of domains for this org
         if (isset($extension_infData['brorg:domainName'])) {
             $data['org_domain_name'] = array();
             foreach ($extension_infData['brorg:domainName'] as $key => $domain_name) {
                 $data['org_domain_name'][] = $domain_name;
             }
         }
+        //IP IP range
         if (isset($extension_infData['brorg:ipRange'])) {
             $data['org_ip_range'] = array(
                 'version' => (isset($extension_infData['brorg:ipRange_attr']['version']) ? $extension_infData['brorg:ipRange_attr']['version'] : ''),
@@ -465,7 +477,7 @@ class Epp extends EppBase implements iEpp
         $response = $this->xml2array($this->unwrap());
         
         if ($response['epp']['response']['result_attr']['code'] != '1000' && $response['epp']['response']['result_attr']['code'] != '1001') {
-            $reason = ($response['epp']['response']['result']['extValue']['reason'] ? ' - ' . $response['epp']['response']['result']['extValue']['reason'] : '');
+            $reason = (isset($response['epp']['response']['result']['extValue']['reason']) ? ' - ' . $response['epp']['response']['result']['extValue']['reason'] : '');
             throw new \Exception($response['epp']['response']['result']['msg'] . $reason, $response['epp']['response']['result_attr']['code']);
         }
         
@@ -516,7 +528,7 @@ class Epp extends EppBase implements iEpp
      *        
      * @access public
      */
-    public function org_update($org_id, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $contact_list = null, $responsible = null)
+    public function org_update($org_id, $org_name=null, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $contact_list = null, $responsible = null)
     {
         $xml = file_get_contents(__DIR__ . '/templates/br_org_update.xml');
         
@@ -581,10 +593,20 @@ class Epp extends EppBase implements iEpp
         $this->send_command($xml);
         
         $response = $this->xml2array($this->unwrap());
+        error_log(print_r($response, true));
         
         if ($response['epp']['response']['result_attr']['code'] != '1000' && $response['epp']['response']['result_attr']['code'] != '1001') {
-            $reason = ($response['epp']['response']['result']['extValue']['reason'] ? ' - ' . $response['epp']['response']['result']['extValue']['reason'] : '');
-            throw new \Exception($response['epp']['response']['result']['msg'] . $reason, $response['epp']['response']['result_attr']['code']);
+            if(isset($response['epp']['response']['result']['extValue'][0])){
+                //If ..['extValue'][0]['reason'] exists so there are multiples reasons
+                $reason = '';
+                foreach ($response['epp']['response']['result']['extValue'] as $key => $contactError ){
+                    $reason .= " Error[". ($key+1) . ']: ' . $contactError['reason'] . ': Contact ' . $contactError['value']['brorg:contact'] . " Type '" . $contactError['value']['brorg:contact_attr']['type'] ."'";
+                    
+                }
+            }else{
+                $reason = ($response['epp']['response']['result']['extValue']['reason'] ? ' - ' . $response['epp']['response']['result']['extValue']['reason'] : '');
+            }
+            throw new \Exception($response['epp']['response']['result']['msg'] . " => " .$reason, $response['epp']['response']['result_attr']['code']);
         }
         
         $data = array(
@@ -704,15 +726,15 @@ class Epp extends EppBase implements iEpp
             'create_provider_id' => $resData_InfData['domain:crID'],
             'domain_name' => $resData_InfData['domain:name'],
             'domain_roid' => $resData_InfData['domain:roid'],
-		/* See EppBase->epp_status*/
-		'domain_publication_status' => (isset($resData_InfData['domain:status_attr']['s'])) ? $resData_InfData['domain:status_attr']['s'] : '',
+    		/* See EppBase->epp_status*/
+    		'domain_publication_status' => (isset($resData_InfData['domain:status_attr']['s'])) ? $resData_InfData['domain:status_attr']['s'] : '',
             'domain_contact' => array(),
             'domain_doc' => array(),
             'domain_dns' => array(),
             'domain_create' => $resData_InfData['domain:crDate'],
             'domain_expiration' => (isset($resData_InfData['domain:exDate'])) ? $resData_InfData['domain:exDate'] : '',
-		/* See EppBase->epp_extension_status*/
-		'domain_extension_status' => $extension_InfData['brdomain:publicationStatus_attr']['publicationFlag'],
+    		/* See EppBase->epp_extension_status*/
+    		'domain_extension_status' => $extension_InfData['brdomain:publicationStatus_attr']['publicationFlag'],
             'domain_extension_ticket' => $extension_InfData['brdomain:ticketNumber'],
             'domain_extension_organization' => $extension_InfData['brdomain:organization'],
             'domain_extension_autorenew' => $extension_InfData['brdomain:autoRenew_attr']['active'],
@@ -1005,7 +1027,7 @@ class Epp extends EppBase implements iEpp
      * @return array Returns domain's information. Array( 'code' => 1010, 'msg' => 'message' )
      * @access public
      */
-    public function domain_renew($domain_name = null, $domain_expiration = null, $domain_year_renovation = 1)
+    public function domain_renew($domain_name, $domain_expiration, $domain_year_renovation = 1)
     {
         $xml = file_get_contents(__DIR__ . '/templates/domain_renew.xml');
         
@@ -1034,7 +1056,6 @@ class Epp extends EppBase implements iEpp
             'domain_new_expiration' => $response['epp']['response']['resData']['domain:renData']['domain:exDate'],
             'domain_publication_status' => (isset($response['epp']['response']['extension']['brdomain:renData']['brdomain:publicationStatus_attr']['publicationFlag'])) ? $response['epp']['response']['extension']['brdomain:renData']['brdomain:publicationStatus_attr']['publicationFlag'] : ''
         );
-        
         return $data;
     }
 
