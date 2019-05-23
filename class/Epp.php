@@ -965,14 +965,14 @@ class Epp extends EppBase implements iEpp
             $chg .= 
                 "<domain:rem>"
                     .($admin_id ? "<domain:contact type=\"admin\">{$domain_data['domain_contact']['admin']}</domain:contact>" : '')
-                    .($billing_id ? "<domain:contact type=\"tech\">{$domain_data['domain_contact']['tech']}</domain:contact>" : '')
-                    .($tech_id ? "<domain:contact type=\"billing\">{$domain_data['domain_contact']['billing']}</domain:contact>" : '')
-				."</domain:rem>
+                    .($billing_id ? "<domain:contact type=\"billing\">{$domain_data['domain_contact']['billing']}</domain:contact>" : '')
+                    .($tech_id ? "<domain:contact type=\"tech\">{$domain_data['domain_contact']['tech']}</domain:contact>" : '')
+                    ."</domain:rem>
 				  <domain:add>"
-				    .($admin_id ? "<domain:contact type=\"admin\">{$admin_id}</domain:contact>" : '')
-				    .($billing_id ? "<domain:contact type=\"tech\">{$billing_id}</domain:contact>" : '')
-				    .($tech_id ? "<domain:contact type=\"billing\">{$tech_id}</domain:contact>" : '')
-				."</domain:add>";
+                    .($admin_id ? "<domain:contact type=\"admin\">{$admin_id}</domain:contact>" : '')
+                    .($billing_id ? "<domain:contact type=\"billing\">{$billing_id}</domain:contact>" : '')
+                    .($tech_id ? "<domain:contact type=\"tech\">{$tech_id}</domain:contact>" : '')
+                 ."</domain:add>";
         }else{
             
         }
