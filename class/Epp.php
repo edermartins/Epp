@@ -203,7 +203,7 @@ class Epp extends EppBase implements iEpp
         
         $contact_voice = ($client_phone ? "<contact:voice>{$client_phone}</contact:voice>" : '' );
         $contact_mail = ($client_email ? "<contact:email>{$client_email}</contact:email>" : '' );
-        $contact_info = "<contact:authInfo><contact:pw>{$this->_password}</contact:pw></contact:authInfo>";
+        $contact_info = "<contact:authInfo><contact:pw>{$this->getPassword()}</contact:pw></contact:authInfo>";
                 
         $chg = "<contact:chg>
                 {$contact_postal_info}
@@ -234,7 +234,7 @@ class Epp extends EppBase implements iEpp
         $data = array(
             'code' => $response['epp']['response']['result_attr']['code'],
             'msg' => $response['epp']['response']['result']['msg'],
-            'reason' => $reason = ($response['epp']['response']['result']['extValue']['reason'] ? $response['epp']['response']['result']['extValue']['reason'] : '')
+            'reason' => $reason = ( isset($response['epp']['response']['result']['extValue']['reason']) ? $response['epp']['response']['result']['extValue']['reason'] : '')
         );
         
         return $data;
@@ -593,7 +593,6 @@ class Epp extends EppBase implements iEpp
         $this->send_command($xml);
         
         $response = $this->xml2array($this->unwrap());
-        error_log(print_r($response, true));
         
         if ($response['epp']['response']['result_attr']['code'] != '1000' && $response['epp']['response']['result_attr']['code'] != '1001') {
             if(isset($response['epp']['response']['result']['extValue'][0])){
@@ -817,7 +816,7 @@ class Epp extends EppBase implements iEpp
      *        
      * @access public
      */
-    public function domain_create($domain_name = null, $domain_period = 1, $dns_1 = null, $dns_2 = null, $org_id = null, $auto_renew = 0)
+    public function domain_create($domain_name, $domain_period = 1, $dns_1 = null, $dns_2 = null, $org_id = null, $auto_renew = 0)
     {
         $xml = file_get_contents(__DIR__ . '/templates/br_domain_create.xml');
         
@@ -907,18 +906,18 @@ class Epp extends EppBase implements iEpp
      *
      * This function updates a domain's information.
      *
-     * @param int $ticket_number
-     *            Creation ticket if the domain has one. Eg: '7889'.
      * @param string $domain_name
      *            Domain name. Eg: 'test.com.br'.
      * @param string $dns_1
      *            Primary DNS in IPv4.
      * @param string $dns_2
      *            Secondary DNS in IPv4.
-     * @param string $client_id
-     *            Contact's ID previously created. Eg: '246.838.523-30'.
-     * @param string $org_id
-     *            Organization ID previously created. Eg: '246.838.523-30'.
+     * @param string $admin_id
+     *            Contact's ID previously created. Eg: 'PTER1'.
+     * @param string $billing_id
+     *            Contact's ID previously created. Eg: 'PTER1'.
+     * @param string $tech_id
+     *            Contact's ID previously created. Eg: 'PTER1'.
      * @param bool $auto_renew
      *            1 for auto renew every year or 0 to expire til the end. Default is 0.
      *            
@@ -926,47 +925,56 @@ class Epp extends EppBase implements iEpp
      *        
      * @access public
      */
-    public function domain_update($ticket_number = null, $domain_name = null, $dns_1 = null, $dns_2 = null, $client_id = null, $org_id = null, $auto_renew = 0)
+    public function domain_update($domain_name, $dns_1 = null, $dns_2 = null, $admin_id = null, $billing_id = null, $tech_id = null, $auto_renew = 0)
     {
-        $domain_data = $this->domain_info($domain_name, $ticket_number);
+        $domain_data = $this->domain_info($domain_name);
         
         $xml = file_get_contents(__DIR__ . '/templates/br_domain_update.xml');
+        $chg = '';
         
         /**
          * This array is only used for Registro.br homologation because the homologation
          * requires 3 DNS verifications.
          */
+        if($dns_1 && $dns_2){
+            /*
+             * The changes only happen if the both DNS are setted
+             */
+            $chg = "<domain:rem>
+    					<domain:hostAttr>
+    						<domain:hostName>{$domain_data['domain_dns'][0]['host']}</domain:hostName>
+    					</domain:hostAttr>
+    					<domain:hostAttr>
+    						<domain:hostName>{$domain_data['domain_dns'][1]['host']}</domain:hostName>
+    					</domain:hostAttr>
+    				</domain:rem>
+    				<domain:add>
+    					<domain:hostAttr>
+    						<domain:hostName>{$dns_1}</domain:hostName>
+    					</domain:hostAttr>
+    					<domain:hostAttr>
+    						<domain:hostName>{$dns_2}</domain:hostName>
+    					</domain:hostAttr>
+    				</domain:add>";
+        }
         
-        $chg = "<domain:rem>
-					<domain:hostAttr>
-						<domain:hostName>{$domain_data['domain_dns']['dns_1']}</domain:hostName>
-					</domain:hostAttr>
-					<domain:hostAttr>
-						<domain:hostName>{$domain_data['domain_dns']['dns_2']}</domain:hostName>
-					</domain:hostAttr>
-				</domain:rem>
-				
-				<domain:add>
-					<domain:hostAttr>
-						<domain:hostName>{$dns_1}</domain:hostName>
-					</domain:hostAttr>
-					<domain:hostAttr>
-						<domain:hostName>{$dns_2}</domain:hostName>
-					</domain:hostAttr>
-				</domain:add>";
-        
-        if ($client_id != null) {
-            $chg .= "<domain:rem>
-						<domain:contact type=\"admin\">{$domain_data['domain_contact']['admin']}</domain:contact>
-						<domain:contact type=\"tech\">{$domain_data['domain_contact']['tech']}</domain:contact>
-						<domain:contact type=\"billing\">{$domain_data['domain_contact']['billing']}</domain:contact>
-					</domain:rem>
-					
-					<domain:add>
-						<domain:contact type=\"admin\">{$client_id}</domain:contact>
-						<domain:contact type=\"tech\">{$client_id}</domain:contact>
-						<domain:contact type=\"billing\">{$client_id}</domain:contact>
-					</domain:add>";
+        if ($admin_id || $billing_id || $tech_id) {
+            /*
+             * Need at least one contact to make changes
+             */
+            $chg .= 
+                "<domain:rem>"
+                    .($admin_id ? "<domain:contact type=\"admin\">{$domain_data['domain_contact']['admin']}</domain:contact>" : '')
+                    .($billing_id ? "<domain:contact type=\"tech\">{$domain_data['domain_contact']['tech']}</domain:contact>" : '')
+                    .($tech_id ? "<domain:contact type=\"billing\">{$domain_data['domain_contact']['billing']}</domain:contact>" : '')
+				."</domain:rem>
+				  <domain:add>"
+				    .($admin_id ? "<domain:contact type=\"admin\">{$admin_id}</domain:contact>" : '')
+				    .($billing_id ? "<domain:contact type=\"tech\">{$billing_id}</domain:contact>" : '')
+				    .($tech_id ? "<domain:contact type=\"billing\">{$tech_id}</domain:contact>" : '')
+				."</domain:add>";
+        }else{
+            
         }
         
         $ext_begin = "<extension>
@@ -974,7 +982,6 @@ class Epp extends EppBase implements iEpp
 						xmlns:brdomain=\"urn:ietf:params:xml:ns:brdomain-1.0\"
 						xsi:schemaLocation=\"urn:ietf:params:xml:ns:brdomain-1.0
 						brdomain-1.0.xsd\">
-							<brdomain:ticketNumber>{$ticket_number}</brdomain:ticketNumber>
 							<brdomain:chg>
 								<brdomain:autoRenew active=\"{$auto_renew}\"/>
 							</brdomain:chg>
@@ -998,16 +1005,49 @@ class Epp extends EppBase implements iEpp
         $this->send_command($xml);
         
         $response = $this->xml2array($this->unwrap());
-        
-        if ($response['epp']['response']['result_attr']['code'] != '1000' && $response['epp']['response']['result_attr']['code'] != '1001') {
-            $reason = ($response['epp']['response']['result']['extValue']['reason'] ? ' - ' . $response['epp']['response']['result']['extValue']['reason'] : '');
-            throw new \Exception($response['epp']['response']['result']['msg'] . $reason, $response['epp']['response']['result_attr']['code']);
+
+        $reason = "";
+        if(isset( $response['epp']['response']['result_attr']) ){
+            if ($response['epp']['response']['result_attr']['code'] != '1000' && $response['epp']['response']['result_attr']['code'] != '1001') {
+                if(isset($response['epp']['response']['result']['extValue']['reason']) ){
+                    $reason = ' - ' . $response['epp']['response']['result']['extValue']['reason'];
+                }else{
+                    /*
+                     * Sometimes we get a list of extValue
+                     */
+                    if(isset($response['epp']['response']['result']['extValue'])){
+                        foreach ($response['epp']['response']['result']['extValue'] as $key => $extValue){
+                            $reason .= " - ERROR$key: " . $extValue['reason'];
+                        }
+                    }//else is not reason
+                }
+                throw new \Exception($response['epp']['response']['result']['msg'] . $reason, $response['epp']['response']['result_attr']['code']);
+            }
+        }else{
+            /*
+             * if response['epp']['response']['result_attr'] does not exists is because $response['epp']['response']['result'] is a list 
+             */
+            $msg = '';
+            $code = '0';
+            if(isset($response['epp']['response']['result'])){
+                foreach ($response['epp']['response']['result'] as $key => $result){
+                    if(is_int($key) ){
+                        $reason .= " - ERROR$key: " . $result['extValue']['reason'];
+                        if($key == 0){
+                            $msg = $result['msg'];
+                        }
+                    }elseif (strpos($key,'_attr')!==false){
+                        $code = $result['code'];
+                    }
+                }
+            }
+            throw new \Exception($msg . $reason, $code);
         }
         
         $data = array(
             'code' => $response['epp']['response']['result_attr']['code'],
             'msg' => $response['epp']['response']['result']['msg'],
-            'reason' => $reason = ($response['epp']['response']['result']['extValue']['reason'] ? $response['epp']['response']['result']['extValue']['reason'] : '')
+            'reason' => $reason = (isset($response['epp']['response']['result']['extValue']['reason']) ? $response['epp']['response']['result']['extValue']['reason'] : '')
         );
         
         return $data;

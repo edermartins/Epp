@@ -32,9 +32,9 @@ interface iEpp
 
     public function domain_info($domain_name, $ticket_number = null);
 
-    public function domain_create($domain_name = null, $domain_period = 1, $dns_1 = null, $dns_2 = null, $org_id = null, $auto_renew = 0);
+    public function domain_create($domain_name, $domain_period = 1, $dns_1 = null, $dns_2 = null, $org_id = null, $auto_renew = 0);
 
-    public function domain_update($ticket_number = null, $domain_name = null, $dns_1 = null, $dns_2 = null, $client_id = null, $org_id = null, $auto_renew = 0);
+    public function domain_update($domain_name, $dns_1 = null, $dns_2 = null, $admin_id = null, $billing_id = null, $tech_id = null, $auto_renew = 0);
 
     public function domain_renew($domain_name, $domain_expiration, $domain_year_renovation = 1);
 
