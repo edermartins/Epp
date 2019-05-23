@@ -516,20 +516,19 @@ class Epp extends EppBase implements iEpp
      *            Phone. Required the country code. Eg: '+55.1100000000'.
      * @param string $org_id
      *            Organization's CPF or CNPJ. Eg: '246.838.523-30'.
-     *            
-     * @param array $contact_list List of arrays with array('id'=> 'EJM12', 'type' => 'admin|billing|tech', 'action' => 'add|rem' )
-     * <br><li><b>id</b>: Contact ID
-     * <br><li><b>type</b>: Type of the contact. Can be admin, tech or billing
-     * <br><li><b>action</b>: <b>add</b> or <b>rem</b>ove a contact from organization. If you want to change one contact,
-     * just remove the old one and add a new one 
+     * @param string $contact_admin_id
+     *            Contact's ID previously created. Eg: 'PTER1'.
      * @param string $responsible Name of the responsible
      *            
      * @return array Returns organization's updated information array('code' => 1010, 'msg' => 'message' )
      *        
      * @access public
      */
-    public function org_update($org_id, $org_name=null, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $contact_list = null, $responsible = null)
+    public function org_update($org_id, $org_name=null, $org_street_1 = null, $org_street_2 = null, $org_street_3 = null, $org_city = null, $org_state = null, $org_zipcode = null, $org_country = 'BR', $org_phone = null, $contact_admin_id = null, $responsible = null)
     {
+        $org_info = $this->org_info($org_id);
+        $contact_admin_id_old = $org_info['org_contact']['admin'];
+        
         $xml = file_get_contents(__DIR__ . '/templates/br_org_update.xml');
         
         $contact_addr = ($org_street_1 ? "<contact:street>{$org_street_1}</contact:street>" : '')
@@ -554,26 +553,18 @@ class Epp extends EppBase implements iEpp
     		</contact:chg>";
 
 		/*
-		 * Processing the 'add' and 'rem' actions
+		 * Remove the old contact and add the new one
 		 */
 		$brorg_add = null;
 		$brorg_rem = null;
-        if(is_array($contact_list)){
-            foreach ($contact_list as $contact){
-                $type = $contact['type'];
-                $contact_id = $contact['id'];
-                if($contact['action'] == 'add'){
-                    $brorg_add = ($brorg_add==null ? "<brorg:add>" : $brorg_add);
-                    $brorg_add .= "<brorg:contact type=\"$type\">$contact_id</brorg:contact>";
-                }elseif($contact['action'] == 'rem'){
-                    $brorg_rem = ($brorg_rem==null ? "<brorg:rem>" : $brorg_rem);
-                    $brorg_rem .= "<brorg:contact type=\"$type\">$contact_id</brorg:contact>";
-                }
-            }
+		if($contact_admin_id){
+            $brorg_add  = "<brorg:add>";
+            $brorg_add .= "<brorg:contact type=\"admin\">$contact_admin_id</brorg:contact>";
+            $brorg_add .= "</brorg:add>";
+            $brorg_rem  = "<brorg:rem>";
+            $brorg_rem .= "<brorg:contact type=\"admin\">$contact_admin_id_old</brorg:contact>";
+            $brorg_rem .= "</brorg:rem>";
         }
-        $brorg_add = ($brorg_add==null ? '' : $brorg_add . "</brorg:add>");
-        $brorg_rem = ($brorg_rem==null ? '' : $brorg_rem . "</brorg:rem>");
-
 		$brorg_chg = $responsible ? "<brorg:chg><brorg:responsible>{$responsible}</brorg:responsible></brorg:chg>" : null;
         
         $cltrid = '<clTRID>' . $this->generate_id() . '</clTRID>';
@@ -611,7 +602,7 @@ class Epp extends EppBase implements iEpp
         $data = array(
             'code' => $response['epp']['response']['result_attr']['code'],
             'msg' => $response['epp']['response']['result']['msg'],
-            'reason' => $reason = ($response['epp']['response']['result']['extValue']['reason'] ? $response['epp']['response']['result']['extValue']['reason'] : '')
+            'reason' => $reason = (isset($response['epp']['response']['result']['extValue']['reason']) ? $response['epp']['response']['result']['extValue']['reason'] : '')
         );
         
         return $data;
